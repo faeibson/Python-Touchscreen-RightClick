@@ -37,7 +37,8 @@ class TrackedEvent(object):
         self.discard = 0
         self.moved = 0
         self.track_start = None
-        self.click_delay = 1.5
+        self.click_delay = 1.0
+        self.move_threshold = 10
         self.long_pressed = False
         if use_pymouse:
             self.mouse = PyMouse()
@@ -55,15 +56,21 @@ class TrackedEvent(object):
             print('Total Fingers used: ', self.total_event_fingers)
         self.fingers -= 1
 
+        #print("fingers: ", self.fingers)
+        #print("total event fingers: ", self.total_event_fingers)
+        print("moved: ", self.moved)
+
         if (self.fingers == 0 and
                 self.total_event_fingers == 2 and
                 self.moved == 0):
+            #print("event fingers == 2")
             self.total_event_fingers = 0
             self._initiate_right_click()
 
         elif (self.fingers == 0 and
                 self.total_event_fingers == 1 and
                 self.moved == 0):
+            print("event fingers == 1")
             self.total_event_fingers = 0
             try:
                 self.track_start.cancel()
@@ -74,6 +81,7 @@ class TrackedEvent(object):
                 self._initiate_right_click()
 
         if self.fingers == 0:
+            #print("discard")
             self.discard = 1
 
     def position_event(self, event_code, value):
@@ -81,7 +89,8 @@ class TrackedEvent(object):
         if self.position[event_code] is None:
             self.position[event_code] = value
         else:
-            if abs(self.position[event_code] - value) > self.vars[event_code]:
+            #print(self.position[event_code], value, self.vars[event_code])
+            if abs(self.position[event_code] - value) > (self.vars[event_code] + self.move_threshold):
                 self._moved_event()
         if (self.fingers == 1 and self.position['ABS_X'] and
                 self.position['ABS_Y'] and self.track_start is None):
@@ -107,6 +116,7 @@ class TrackedEvent(object):
 
     def _initiate_right_click(self):
         """ Internal method for initiating a right click at touch point. """
+        print("right click")
         if self.mouse is None:
             with UInput(self.abilities) as ui:
                 ui.write(ecodes.EV_ABS, ecodes.ABS_X, 0)
@@ -128,7 +138,9 @@ def initiate_gesture_find(use_pymouse=False, long_press_workaround=False):
     for device in list_devices():
         dev = InputDevice(device)
         if (dev.name == 'ELAN Touchscreen') or \
-           (dev.name == 'Atmel Atmel maXTouch Digitizer'):
+           (dev.name == 'Atmel Atmel maXTouch Digitizer') or \
+           (dev.name == 'eGalax Inc. USB TouchController'):
+            print("device found!")
             break
     Abs_events = {}
     abilities = {ecodes.EV_ABS: [ecodes.ABS_X, ecodes.ABS_Y],
